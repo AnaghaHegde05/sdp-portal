@@ -38,7 +38,7 @@ def _blank_png() -> bytes:
     return buf.getvalue()
 
 
-SAMPLE_LINES = ["KLE Technological University", "USN: 01FE23CSE001", "CGPA: 8.37", "Date: 12/05/2024"]
+SAMPLE_LINES = ["KLE Technological University", "USN: 01FE23BCS001", "CGPA: 8.37", "Date: 12/05/2024"]
 
 
 from app.services.applications import create_application  # noqa: E402
@@ -60,8 +60,8 @@ def test_ocr_extracts_text_and_fields_from_image(api, student_auth, doc_type, up
     doc = body["documents"][0]
     ocr = doc["ocr_result"]
     assert ocr["status"] == "SUCCESS"
-    assert "01FE23CSE001" in ocr["raw_text"]
-    assert ocr["extracted_fields"]["detected_usns"] == ["01FE23CSE001"]
+    assert "01FE23BCS001" in ocr["raw_text"]
+    assert ocr["extracted_fields"]["detected_usns"] == ["01FE23BCS001"]
     assert ocr["extracted_fields"]["detected_cgpa_like_numbers"] == ["8.37"]
     assert ocr["extracted_fields"]["detected_dates"] == ["12/05/2024"]
     assert ocr["extracted_fields"]["word_count"] > 0

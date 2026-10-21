@@ -71,15 +71,17 @@ The first build downloads images and installs everything (several minutes). Star
 
 ### What happens on every start (migrations and seeding)
 `backend/docker-entrypoint.sh` runs, in order: `alembic upgrade head` -> `python -m app.db.seed` (4 document
-types) -> `python -m app.db.seed_students` (12 simulated students) -> API server. All steps are **idempotent**: a
-restart applies no migration twice and adds only missing seed rows, so records are never duplicated.
+types) -> `python -m app.db.seed_students` (12 simulated students) -> API server. All steps are **idempotent**:
+restart adds only missing seed rows; the student seeder also updates earlier simulated USN formats in-place while
+preserving each student row and its linked account.
 Container-to-container, the backend reaches PostgreSQL at host `db` (the Compose service name), not `localhost`.
 
 ### Step 3 - Register and sign in as a simulated student
 1. Open <http://localhost:3000> and click **Register**.
-2. Enter a USN in `01FE{YY}{BRANCH}{NNN}` format (e.g. `01FE23CSE001`), any email (e.g. `student1@example.com`)
-   and a password of 8+ characters. The format is validated first, then registration links the login to the
-   **pre-loaded simulated** student record; a structurally valid but unknown USN is still rejected.
+2. Enter a USN in `01FE{YY}{BRANCH}{NNN}` format (e.g. `01FE23BCS001`), any email (e.g. `student1@example.com`)
+   and a password of 8+ characters. Supported branch codes are `BCS`, `BEE`, `BEC`, `BEV`, `BCI`, and `BME`.
+   The format is validated first, then registration links the login to the **pre-loaded simulated** student record;
+   a structurally valid but unknown USN is still rejected. Format validation alone does not determine eligibility.
 3. You are signed in and land on the dashboard. Next time use **Sign in**.
 
 Seeded USNs (simulated data from `backend/app/db/seed_students.py`). Their CGPA, backlog and fee fields are
@@ -88,18 +90,18 @@ is the details and documents you submit:
 
 | What you do | Expected outcome |
 |---|---|
-| Attach scans whose text shows **your own USN** (the included sample does for `01FE23CSE001`) | **Eligible** |
+| Attach scans whose text shows **your own USN** (for example `01FE23BCS001`) | **Eligible** |
 | Attach a scan showing a **different** USN, or one where no USN can be read | **Needs verification** (not a rejection) |
 | Provisional Degree Certificate: answer **No** to "completed all requirements" or "result declared" | **Needs verification** |
 
-(`01FE23CSE001` is the easiest to use for a first run.)
+(`01FE23BCS001` is a seeded example for a first run.)
 
 ### Step 4 - Submit an application and watch the automatic flow
 1. Click **New application** and choose one of the four requests. The form changes to show **that request's own details
    and required documents** (e.g. a Duplicate Grade Card asks for the semesters, exam session and a declaration of loss; a
    Transcript asks for purpose and number of copies). Your name, USN, department and email come from your student record.
 2. Fill the details (fields marked * are required) and attach **one file per document slot**. For a first run register
-   `01FE23CSE001` and attach `samples\sample_document_01FE23CSE001.png` to every slot (it shows that USN). Limits: PDF, JPG,
+   `01FE23BCS001` and upload clear scans that show that USN. Limits: PDF, JPG,
    JPEG or PNG; 5 MB per file; 5 files per application. Wrong type/content, oversize and missing required files are
    flagged immediately.
 3. Click **Submit application**. An upload progress bar appears, then you are taken to the application page.
@@ -144,7 +146,7 @@ Run the backend tests inside the container (uses the real database, rolls back i
 docker compose exec backend python -m pytest -q
 ```
 
-> **Caveat:** several existing tests register the seeded USNs (e.g. `01FE23CSE001`) and expect them to be unregistered. Run the tests
+> **Caveat:** several existing tests register the seeded USNs (e.g. `01FE23BCS001`) and expect them to be unregistered. Run the tests
 > on a database where you have not registered those students yet (a fresh start, or after `docker compose down -v`); otherwise they fail with
 > `409 This USN already has an account`. The tests themselves roll back and leave no rows behind.
 
@@ -186,6 +188,10 @@ docker compose exec backend python -m pytest -q
 | Details each request asks for, required/optional documents, "verified" flag | `backend/app/core/request_types.py` |
 | Max files per application (default 5) and max MB per file (default 5) | `MAX_FILES_PER_APPLICATION`, `MAX_UPLOAD_MB` in `.env` (read by `backend/app/core/config.py`) |
 | Which eligibility rules apply to which request, and whether each is verified | `POLICY` section of `backend/app/services/eligibility.py` |
+
+Registration normalizes USNs to uppercase and accepts only `01FE{YY}{BRANCH}{NNN}` with branch codes
+`BCS`, `BEE`, `BEC`, `BEV`, `BCI`, or `BME`. This checks the identifier's format only; student-record linking and
+application eligibility are separate checks.
 
 The portal renders its forms and upload rules from `GET /api/request-types`, and the backend validates every
 submission against the same definitions, so the two cannot drift. After changing `.env`, restart with
@@ -287,7 +293,7 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 
 #### Sign in as a student
 Student records are simulated (`python -m app.db.seed_students`); there is no real KLE Tech data.
-Register a login for one of the seeded USNs (`01FE23CSE001` … `01FE23CIV002`, see
+Register a login for one of the seeded USNs (`01FE23BCS001` … `01FE23BCI002`, see
 `app/db/seed_students.py` for the full list) at `/register` with any email and an 8+ character
 password, then sign in at `/login`.
 

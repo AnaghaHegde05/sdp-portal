@@ -35,10 +35,10 @@ export default function NavBar() {
     <header className="topbar">
       <div className="topbar-inner">
         <Link href="/" className="brand">
-          <span className="brand-mark" aria-hidden="true">UD</span>
+          <span className="brand-mark" aria-hidden="true">KLE</span>
           <span className="brand-text">
-            University Document Portal
-            <small>Academic document services</small>
+            KLE Technological University
+            <small>Student document portal</small>
           </span>
         </Link>
 

@@ -11,7 +11,7 @@ def _statuses(body):
     return [h["status"] for h in body["history"]]
 
 
-def _start(api, db_session, usn="01FE23CSE001", code="TRANSCRIPT", **kw):
+def _start(api, db_session, usn="01FE23BCS001", code="TRANSCRIPT", **kw):
     headers = register_seeded(api, usn)
     return headers, submit_for(api, headers, doc_type_id(db_session, code), usn, **kw)
 
@@ -39,7 +39,7 @@ def test_process_is_idempotent(api, db_session):
 
 
 def test_process_unclear_document_stops_at_manual_review(api, db_session):
-    headers, app_id = _start(api, db_session, fill=usn_png("01FE23ECE001"))  # someone else's USN on the scan
+    headers, app_id = _start(api, db_session, fill=usn_png("01FE23BEC001"))  # someone else's USN on the scan
     body = api.post(f"/api/applications/{app_id}/process", headers=headers).json()
     assert body["status"] == "MANUAL_REVIEW"
     assert body["eligibility_result"]["outcome"] == "MANUAL_REVIEW"
@@ -49,10 +49,10 @@ def test_process_unclear_document_stops_at_manual_review(api, db_session):
 
 
 def test_process_failed_ocr_does_not_run_eligibility_and_can_retry(api, db_session):
-    headers = register_seeded(api, "01FE23CSE001")
+    headers = register_seeded(api, "01FE23BCS001")
     corrupt = b"%PDF-1.4\n" + (b"\x00\x01\x02garbage" * 30)
     r = submit(api, headers, doc_type_id(db_session, "TRANSCRIPT"), [("bad.pdf", corrupt, "application/pdf")],
-               fill=usn_png("01FE23CSE001"))
+               fill=usn_png("01FE23BCS001"))
     app_id = r.json()["id"]
 
     body = api.post(f"/api/applications/{app_id}/process", headers=headers).json()
@@ -90,13 +90,13 @@ def test_process_requires_login(api):
 
 def test_process_404_for_someone_elses_application(api, db_session):
     headers, app_id = _start(api, db_session)
-    other = register_seeded(api, "01FE23CSE002")
+    other = register_seeded(api, "01FE23BCS002")
     assert api.post(f"/api/applications/{app_id}/process", headers=other).status_code == 404
     assert api.get(f"/api/applications/{app_id}", headers=headers).json()["status"] == "SUBMITTED"
 
 
 def test_detail_exposes_fee_from_backend_schedule(api, db_session):
-    headers = register_seeded(api, "01FE23CSE001")
+    headers = register_seeded(api, "01FE23BCS001")
     for code, fee in [("TRANSCRIPT", "200.00"), ("MIGRATION_CERTIFICATE", "500.00")]:
-        app_id = submit_for(api, headers, doc_type_id(db_session, code), "01FE23CSE001")
+        app_id = submit_for(api, headers, doc_type_id(db_session, code), "01FE23BCS001")
         assert api.get(f"/api/applications/{app_id}", headers=headers).json()["fee_amount"] == fee

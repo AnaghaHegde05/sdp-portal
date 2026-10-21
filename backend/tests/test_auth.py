@@ -38,8 +38,14 @@ def test_password_is_stored_hashed(make_student, register, db_session):
 
 
 def test_usn_is_normalised(make_student, register):
-    student = make_student(usn="01FE23CSE123")
-    assert register("  01fe23cse123 ").status_code == 201
+    student = make_student(usn="01FE23BCS123")
+    assert register("  01fe23bcs123 ").status_code == 201
+
+
+@pytest.mark.parametrize("branch", ["BCS", "BEE", "BEC", "BEV", "BCI", "BME"])
+def test_register_accepts_supported_branches(make_student, register, branch):
+    student = make_student(usn=f"01FE23{branch}123")
+    assert register(student.usn).status_code == 201
 
 
 def test_register_unknown_usn(register):
@@ -51,9 +57,14 @@ def test_register_rejects_legacy_usn_format(register):
     assert register("SIM23CSE001").status_code == 422
 
 
+@pytest.mark.parametrize("usn", ["01FE23CSE001", "01FE23TST001", "01FE2BCS001", "01FE23BCS01", "01FE23BCS0001"])
+def test_register_rejects_unsupported_or_malformed_usn(register, usn):
+    assert register(usn).status_code == 422
+
+
 def test_student_seed_migrates_legacy_usn_without_unlinking_account(db_session, make_student, monkeypatch):
     legacy_usn = "SIM23TST987"
-    canonical_usn = "01FE23TST987"
+    canonical_usn = "01FE23BCS987"
     student = make_student(usn=legacy_usn)
     user = User(email="seed-migration@example.com", password_hash="not-a-real-hash")
     db_session.add(user)

@@ -59,10 +59,10 @@ ALL_TYPES = ["TRANSCRIPT", "MIGRATION_CERTIFICATE", "DUPLICATE_GRADE_CARD", "PRO
 @pytest.mark.parametrize(
     "usn",
     [
-        "01FE23CSE001",  # fee CLEAR, no backlogs
-        "01FE23CSE002",  # has a backlog
-        "01FE23CSE004",  # fee DUE
-        "01FE23EEE001",  # fee DUE, no backlogs
+        "01FE23BCS001",  # fee CLEAR, no backlogs
+        "01FE23BCS002",  # has a backlog
+        "01FE23BCS004",  # fee DUE
+        "01FE23BEE001",  # fee DUE, no backlogs
     ],
 )
 def test_no_fee_backlog_or_cgpa_restriction(api, db_session, usn, doc_code):
@@ -76,53 +76,53 @@ def test_no_fee_backlog_or_cgpa_restriction(api, db_session, usn, doc_code):
 
 
 def test_eligible_result_lists_the_checks_that_ran(api, db_session):
-    headers = register_seeded(api, "01FE23CSE001")
-    r = full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23CSE001")
+    headers = register_seeded(api, "01FE23BCS001")
+    r = full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23BCS001")
     assert r["eligibility_result"]["checks"] == ["required_documents", "usn_on_documents"]
     assert r["eligibility_result"]["requirements_verified"] is False  # honest: lists are provisional
 
 
 def test_usn_on_a_different_student_goes_to_manual_review(api, db_session):
-    headers = register_seeded(api, "01FE23CSE001")
-    r = full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23CSE001", fill=usn_png("01FE23ECE001"))
+    headers = register_seeded(api, "01FE23BCS001")
+    r = full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23BCS001", fill=usn_png("01FE23BEC001"))
     assert r["status"] == "MANUAL_REVIEW"
     assert r["status_label"] == "Needs verification"
     res = r["eligibility_result"]
     assert res["outcome"] == "MANUAL_REVIEW"
-    assert "differs" in res["reasons"][0]["message"] and "01FE23ECE001" in res["reasons"][0]["message"]
+    assert "differs" in res["reasons"][0]["message"] and "01FE23BEC001" in res["reasons"][0]["message"]
     assert r["history"][-1]["note"].startswith("Needs verification:")
 
 
 def test_usn_not_found_on_document_goes_to_manual_review_not_rejection(api, db_session):
-    headers = register_seeded(api, "01FE23CSE001")
+    headers = register_seeded(api, "01FE23BCS001")
     no_usn = _text_png(["Some marks card", "CGPA: 8.37", "Date: 12/05/2024"])
-    r = full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23CSE001", fill=no_usn)
+    r = full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23BCS001", fill=no_usn)
     assert r["status"] == "MANUAL_REVIEW"
     assert "could not be found" in r["eligibility_result"]["reasons"][0]["message"]
 
 
 def test_unreadable_blank_scan_goes_to_manual_review(api, db_session):
-    headers = register_seeded(api, "01FE23CSE001")
-    r = full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23CSE001", fill=_blank_png())
+    headers = register_seeded(api, "01FE23BCS001")
+    r = full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23BCS001", fill=_blank_png())
     assert r["status"] == "MANUAL_REVIEW"
     assert "No readable text" in r["eligibility_result"]["reasons"][0]["message"]
 
 
 def test_id_proof_is_not_checked_for_a_usn(api, db_session):
     """Only documents that normally carry the USN are checked; the ID proof may show none."""
-    headers = register_seeded(api, "01FE23CSE001")
-    files = [("marks.png", usn_png("01FE23CSE001"), "image/png"), ("deg.png", usn_png("01FE23CSE001"), "image/png"),
+    headers = register_seeded(api, "01FE23BCS001")
+    files = [("marks.png", usn_png("01FE23BCS001"), "image/png"), ("deg.png", usn_png("01FE23BCS001"), "image/png"),
              ("id.png", _text_png(["Government ID", "Name only"]), "image/png")]
-    r = full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23CSE001", files=files)
+    r = full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23BCS001", files=files)
     assert r["status"] == "ELIGIBLE", r["history"][-1]["note"]
 
 
 @pytest.mark.parametrize("field", ["final_result_declared", "all_requirements_completed"])
 def test_pdc_declared_incomplete_is_unverified_so_manual_review(api, db_session, field):
     """'Degree not completed' is not a confirmed KLE Tech rule, so it must not auto-reject."""
-    headers = register_seeded(api, "01FE23CSE001")
+    headers = register_seeded(api, "01FE23BCS001")
     details = {**valid_details("PROVISIONAL_DEGREE_CERTIFICATE"), field: "No"}
-    r = full_flow(api, headers, doc_type_id(db_session, "PROVISIONAL_DEGREE_CERTIFICATE"), "01FE23CSE001", details=details)
+    r = full_flow(api, headers, doc_type_id(db_session, "PROVISIONAL_DEGREE_CERTIFICATE"), "01FE23BCS001", details=details)
     assert r["status"] == "MANUAL_REVIEW"
     reason = r["eligibility_result"]["reasons"][0]
     assert reason["outcome"] == "MANUAL_REVIEW" and reason["verified"] is False
@@ -135,9 +135,9 @@ def test_a_verified_rule_can_reject_as_ineligible(api, db_session, monkeypatch):
     monkeypatch.setitem(
         eligibility.RULES_BY_DOCUMENT_TYPE, "PROVISIONAL_DEGREE_CERTIFICATE", [dataclasses.replace(rule, verified=True)]
     )
-    headers = register_seeded(api, "01FE23CSE001")
+    headers = register_seeded(api, "01FE23BCS001")
     details = {**valid_details("PROVISIONAL_DEGREE_CERTIFICATE"), "all_requirements_completed": "No"}
-    r = full_flow(api, headers, doc_type_id(db_session, "PROVISIONAL_DEGREE_CERTIFICATE"), "01FE23CSE001", details=details)
+    r = full_flow(api, headers, doc_type_id(db_session, "PROVISIONAL_DEGREE_CERTIFICATE"), "01FE23BCS001", details=details)
     assert r["status"] == "NOT_ELIGIBLE"  # stored value of the INELIGIBLE outcome
     assert r["eligibility_result"]["outcome"] == "INELIGIBLE"
     assert "not completed all requirements" in r["history"][-1]["note"]
@@ -191,16 +191,16 @@ def test_missing_required_document_is_caught_by_the_engine_too(api, db_session, 
 
 
 def test_manual_review_cannot_be_rerun_into_eligible_by_the_student(api, db_session):
-    headers = register_seeded(api, "01FE23CSE001")
-    r = full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23CSE001", fill=usn_png("01FE23ECE001"))
+    headers = register_seeded(api, "01FE23BCS001")
+    r = full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23BCS001", fill=usn_png("01FE23BEC001"))
     assert r["status"] == "MANUAL_REVIEW"
     again = api.post(f"/api/applications/{r['id']}/eligibility", headers=headers)
     assert again.status_code == 400  # decision stays until a person verifies it
 
 
 def test_eligibility_requires_ocr_first(api, db_session):
-    headers = register_seeded(api, "01FE23CSE001")
-    app_id = submit_for(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23CSE001")
+    headers = register_seeded(api, "01FE23BCS001")
+    app_id = submit_for(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23BCS001")
     r = api.post(f"/api/applications/{app_id}/eligibility", headers=headers)  # OCR skipped
     assert r.status_code == 400
 
@@ -210,9 +210,9 @@ def test_eligibility_requires_login(api):
 
 
 def test_eligibility_404_for_someone_elses_application(api, db_session):
-    headers_a = register_seeded(api, "01FE23CSE001")
-    app_id = full_flow(api, headers_a, doc_type_id(db_session, "TRANSCRIPT"), "01FE23CSE001")["id"]
-    headers_b = register_seeded(api, "01FE23CSE002")
+    headers_a = register_seeded(api, "01FE23BCS001")
+    app_id = full_flow(api, headers_a, doc_type_id(db_session, "TRANSCRIPT"), "01FE23BCS001")["id"]
+    headers_b = register_seeded(api, "01FE23BCS002")
     assert api.post(f"/api/applications/{app_id}/eligibility", headers=headers_b).status_code == 404
 
 
@@ -220,6 +220,6 @@ def test_eligibility_does_not_touch_risk_scoring(api, db_session):
     """ML risk scoring is a separate concern: this step only changes status/history/eligibility_result."""
     from app.models import Transaction
 
-    headers = register_seeded(api, "01FE23CSE001")
-    full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23CSE001")
+    headers = register_seeded(api, "01FE23BCS001")
+    full_flow(api, headers, doc_type_id(db_session, "TRANSCRIPT"), "01FE23BCS001")
     assert db_session.query(Transaction).count() == 0

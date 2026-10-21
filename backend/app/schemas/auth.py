@@ -13,7 +13,7 @@ class RegisterRequest(BaseModel):
     def normalise_usn(cls, v: str) -> str:
         normalized = normalize_usn(v)
         if not is_valid_usn(normalized):
-            raise ValueError("USN must match 01FE{YY}{BRANCH}{NNN}.")
+            raise ValueError("USN must match 01FE{YY}{BRANCH}{NNN} using BCS, BEE, BEC, BEV, BCI, or BME.")
         return normalized
 
 

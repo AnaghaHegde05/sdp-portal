@@ -136,7 +136,7 @@ def make_student(db_session):
     def _make(usn: str | None = None, **overrides) -> Student:
         counter["n"] += 1
         student = Student(
-            usn=usn or f"01FE23TST{counter['n']:03d}",
+            usn=usn or f"01FE23BEV{counter['n']:03d}",
             full_name=overrides.pop("full_name", "Test Student"),
             department="Computer Science and Engineering",
             semester=7,
